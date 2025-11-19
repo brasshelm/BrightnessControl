@@ -1,8 +1,8 @@
 # BrightnessControl
 
-> macOS status bar application for advanced display brightness control
+> macOS menu bar app for advanced display brightness control with automatic warm tint
 
-A native Swift-based macOS menu bar app that provides fine-grained control over display brightness for both internal and external displays. Features keyboard shortcuts, visual overlay feedback, and direct DDC/CI hardware control.
+A native Swift-based macOS menu bar application that provides fine-grained control over display brightness for both internal and external displays. Features intuitive keyboard shortcuts, automatic warm tint (f.lux-style), persistent settings across display reconnections, and intelligent per-display control.
 
 ## Why No Demo?
 
@@ -17,49 +17,154 @@ This app controls brightness through **gamma table adjustments**—a software-ba
 
 ## Features
 
-- **Status Bar Menu** - Quick access from macOS menu bar
-- **Keyboard Shortcuts** - System-wide hotkeys for brightness control
-- **Visual Overlay** - On-screen brightness level indicator
-- **External Display Support** - DDC/CI protocol for hardware brightness control (including ARM64 M-series Macs)
-- **Internal Display Control** - Native CoreDisplay integration for built-in displays
-- **Persistence** - Remembers brightness settings across sessions
-- **Zero Dependencies** - Native Swift, no external frameworks
+### Core Functionality
 
-## Setup
+- **Intuitive Keyboard Shortcuts** - System-wide hotkeys for quick brightness adjustment
+  - `Cmd+U` - Decrease brightness
+  - `Cmd+I` - Increase brightness
+  - Automatically detects which display to adjust based on cursor position
+
+- **Automatic Warm Tint** - Eye-friendly color temperature adjustment applied to all brightness levels
+  - Reduces blue light (50% blue, 75% green, 100% red)
+  - Similar to f.lux/Night Shift but integrated with brightness control
+  - Baked into brightness adjustments for seamless experience
+
+- **Smart Display Management**
+  - Automatically detects internal (MacBook) and external displays
+  - Cursor-based display targeting (adjusts the display your mouse is on)
+  - Separate control strategies optimized for each display type
+
+- **Persistent Settings with Reconnection Memory**
+  - Remembers brightness per display across app restarts
+  - Automatically restores brightness when external display reconnects
+  - No jarring brightness resets when displays wake from sleep
+
+- **Zero Dependencies** - Native Swift, no external frameworks required
+
+## Installation
 
 ### Prerequisites
 - macOS 12.0 or later
 - Xcode or Swift toolchain installed
+- **Accessibility Permissions** (required for global keyboard shortcuts)
 
-### Build from Source
+### Build and Install from Source
 
 ```bash
 # Clone the repository
 git clone https://github.com/cameronobriendev/BrightnessControl.git
 cd BrightnessControl
 
-# Build the executable
-swift build -c release
-
-# Run the app
-.build/release/BrightnessControl
+# Build and install (includes proper code signing)
+./install.sh
 ```
 
-The app will launch and appear in your menu bar. Configure keyboard shortcuts and preferences from the menu.
+The `install.sh` script handles:
+- Building the release binary
+- Installing to your Applications folder
+- Code signing to preserve accessibility permissions
+
+### Grant Accessibility Permissions
+
+After first launch, macOS will prompt you to grant Accessibility permissions:
+
+1. Open **System Settings** > **Privacy & Security** > **Accessibility**
+2. Enable permissions for BrightnessControl
+3. Restart the app
+
+This is required for global keyboard shortcuts (`Cmd+U` / `Cmd+I`) to function.
+
+### Usage
+
+Once installed and running:
+- The app appears in your menu bar
+- Press `Cmd+U` to decrease brightness on the display under your cursor
+- Press `Cmd+I` to increase brightness on the display under your cursor
+- Warm tint is automatically applied at all brightness levels
+
+## How It Works
+
+### Brightness Control Methods
+
+BrightnessControl uses different strategies optimized for each display type:
+
+**Internal Display (MacBook Screen)**
+- Hardware brightness control via DisplayServices framework
+- Gamma adjustment for warm color temperature only
+- Provides smooth, native-feeling brightness changes
+- Preserves screen contrast and color accuracy
+
+**External Displays**
+- Software-based gamma table manipulation
+- Combines brightness dimming and warm tint in a single operation
+- Works with any external display (no special hardware support required)
+
+### Warm Tint Technology
+
+The warm tint feature reduces blue light emission by adjusting the display's color balance:
+- **Red channel**: 100% (unchanged)
+- **Green channel**: 75% (slightly reduced)
+- **Blue channel**: 50% (heavily reduced)
+
+This creates an orange/warm color temperature similar to f.lux or Night Shift, reducing eye strain during evening use.
+
+### Display Reconnection Intelligence
+
+When you disconnect and reconnect an external display, BrightnessControl:
+1. Detects the display reconnection event via CoreGraphics callbacks
+2. Identifies the display by its unique ID
+3. Retrieves the saved brightness setting from local storage
+4. Automatically restores the previous brightness level
+
+No manual adjustment needed—your displays remember their settings.
 
 ## Architecture
 
-- **AppDelegate** - Application lifecycle management
-- **StatusBarController** - Menu bar UI and menu items
-- **DisplayManager** - Manages internal and external display detection
-- **BrightnessController** - Core brightness adjustment logic
-- **ExternalDisplayDriver** - DDC/CI communication for external displays
-- **InternalDisplayDriver** - CoreDisplay integration for built-in displays
-- **Arm64DDC** - ARM-specific DDC/CI implementation for M-series Macs
-- **GammaController** - Software-based brightness via gamma tables (fallback)
-- **KeyInterceptor** - Global keyboard shortcut handling
-- **OverlayManager** - Visual feedback overlay rendering
-- **PersistenceManager** - Settings and state storage
+For developers interested in the codebase structure:
+
+- **AppDelegate** - Application lifecycle, menu bar setup
+- **StatusBarController** - Menu bar UI and interactions
+- **DisplayManager** - Display detection and reconnection handling
+- **BrightnessController** - Routes commands to appropriate drivers
+- **ExternalDisplayDriver** - Gamma-based control for external displays
+- **InternalDisplayDriver** - Hardware brightness + gamma warm tint
+- **GammaController** - Gamma table manipulation (warmth + brightness)
+- **KeyInterceptor** - Global keyboard shortcuts (Cmd+U/I)
+- **OverlayManager** - Visual feedback overlay
+- **PersistenceManager** - UserDefaults-based settings storage
+
+See `DEVELOPMENT.md` for detailed technical documentation.
+
+## Troubleshooting
+
+### Keyboard shortcuts not working
+- Ensure the app has **Accessibility permissions** in System Settings
+- Check that you've restarted the app after granting permissions
+- Verify the app is running (icon should appear in menu bar)
+
+### Brightness not persisting after display reconnect
+- Ensure you're using the latest version with display reconfiguration callbacks
+- Check logs at `/tmp/brightness.log` for display detection events
+- Try manually adjusting brightness once after reconnecting to re-save settings
+
+### Display appears washed out
+- This may indicate a gamma configuration issue
+- Try restarting the app to reset gamma tables
+- Check that you're running the latest version with separate brightness/warmth handling
+
+### Want to disable warm tint?
+- Current version has warm tint always enabled
+- To disable: modify `GammaController.swift` warm tint constants to `1.0` and rebuild
+- Future versions may include a toggle option
+
+## Development
+
+Interested in contributing? Check out `DEVELOPMENT.md` for:
+- Detailed architecture documentation
+- Code signing and build process
+- How gamma tables work
+- Display reconnection implementation details
+- Log file locations and debugging tips
 
 ## License
 

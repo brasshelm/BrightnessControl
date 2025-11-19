@@ -16,15 +16,13 @@ class GammaController {
     func setSoftwareBrightness(_ brightness: Float, for displayID: CGDirectDisplayID) {
         let clampedBrightness = max(0.0, min(1.0, brightness))
 
-        // Check if warm tint is enabled for this display
-        let tintEnabled = warmTintEnabled[displayID] ?? false
+        NSLog("🎨 GAMMA: setSoftwareBrightness(\(clampedBrightness)) for display \(displayID) - warmth ALWAYS ON")
 
-        NSLog("🎨 GAMMA: setSoftwareBrightness(\(clampedBrightness)) for display \(displayID), warmTint=\(tintEnabled)")
-
+        // Always apply warm tint for comfortable viewing
         // Calculate RGB max values: brightness * tint multiplier
-        let redMax = clampedBrightness * (tintEnabled ? warmTintRed : 1.0)
-        let greenMax = clampedBrightness * (tintEnabled ? warmTintGreen : 1.0)
-        let blueMax = clampedBrightness * (tintEnabled ? warmTintBlue : 1.0)
+        let redMax = clampedBrightness * warmTintRed
+        let greenMax = clampedBrightness * warmTintGreen
+        let blueMax = clampedBrightness * warmTintBlue
 
         // Apply to RGB channels with optional warm tint
         let result = CGSetDisplayTransferByFormula(
@@ -37,6 +35,25 @@ class GammaController {
         if result == .success {
             NSLog("🎨 GAMMA SUCCESS: brightness=\(clampedBrightness), RGB=(\(redMax), \(greenMax), \(blueMax))")
             savedGammaValues[displayID] = (redMax, greenMax, blueMax)
+        } else {
+            NSLog("🎨 GAMMA FAILED: Error \(result.rawValue) for display \(displayID)")
+        }
+    }
+
+    // Set warm tint only (no brightness adjustment) - useful when hardware brightness is available
+    func setWarmTintOnly(for displayID: CGDirectDisplayID) {
+        NSLog("🎨 GAMMA: setWarmTintOnly for display \(displayID)")
+
+        // Apply warm tint at 100% brightness (just color shift, no dimming)
+        let result = CGSetDisplayTransferByFormula(
+            displayID,
+            0.0, warmTintRed, 1.0,      // Red channel
+            0.0, warmTintGreen, 1.0,    // Green channel
+            0.0, warmTintBlue, 1.0      // Blue channel
+        )
+
+        if result == .success {
+            NSLog("🎨 GAMMA SUCCESS: Warm tint applied, RGB=(\(warmTintRed), \(warmTintGreen), \(warmTintBlue))")
         } else {
             NSLog("🎨 GAMMA FAILED: Error \(result.rawValue) for display \(displayID)")
         }

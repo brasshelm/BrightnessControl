@@ -9,8 +9,10 @@ class InternalDisplayDriver {
     private var getBrightnessFunc: DisplayServicesGetBrightnessFunc?
     private var setBrightnessFunc: DisplayServicesSetBrightnessFunc?
     private var builtInDisplayID: CGDirectDisplayID?
+    private var gammaController: GammaController?
 
     init() {
+        gammaController = GammaController()
         // Dynamically load DisplayServices functions
         let handle = dlopen("/System/Library/PrivateFrameworks/DisplayServices.framework/DisplayServices", RTLD_LAZY)
         if let handle = handle {
@@ -52,6 +54,7 @@ class InternalDisplayDriver {
             return 0.0
         }
 
+        // Get brightness from hardware (not gamma, since we only use gamma for warmth)
         var brightness: Float = 0.0
         let result = getFunc(displayID, &brightness)
 
@@ -64,19 +67,25 @@ class InternalDisplayDriver {
     }
 
     func setBrightness(_ brightness: Float) {
-        guard let displayID = builtInDisplayID,
-              let setFunc = setBrightnessFunc else {
-            print("No built-in display found or DisplayServices not loaded")
+        guard let displayID = builtInDisplayID else {
+            print("No built-in display found")
             return
         }
 
         let clampedBrightness = max(0.0, min(1.0, brightness))
-        let result = setFunc(displayID, clampedBrightness)
 
-        if result != 0 {
-            print("Failed to set brightness to \(clampedBrightness), error: \(result)")
-        } else {
-            print("Set built-in display brightness to \(clampedBrightness)")
+        // Set hardware brightness for actual dimming (not gamma)
+        if let setFunc = setBrightnessFunc {
+            let result = setFunc(displayID, clampedBrightness)
+            if result != 0 {
+                NSLog("⚠️ INTERNAL: Failed to set hardware brightness, error: \(result)")
+            } else {
+                NSLog("💡 INTERNAL: Set hardware brightness to \(clampedBrightness)")
+            }
         }
+
+        // Apply warm tint via gamma (without dimming)
+        NSLog("💡 INTERNAL: Applying warm tint via gamma")
+        gammaController?.setWarmTintOnly(for: displayID)
     }
 }

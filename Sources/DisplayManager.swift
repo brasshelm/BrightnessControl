@@ -17,6 +17,31 @@ class DisplayManager {
     init() {
         brightnessController = BrightnessController()
         updateDisplayList()
+
+        // Register for display configuration changes
+        setupDisplayReconfigurationCallback()
+    }
+
+    private func setupDisplayReconfigurationCallback() {
+        // Create callback closure
+        let callback: CGDisplayReconfigurationCallBack = { (display, flags, userInfo) in
+            guard let userInfo = userInfo else { return }
+            let manager = Unmanaged<DisplayManager>.fromOpaque(userInfo).takeUnretainedValue()
+
+            if flags.contains(.addFlag) {
+                NSLog("🖥️ Display \(display) was ADDED")
+                manager.updateDisplayList()
+            } else if flags.contains(.removeFlag) {
+                NSLog("🖥️ Display \(display) was REMOVED")
+                manager.updateDisplayList()
+            }
+        }
+
+        // Register the callback
+        let selfPointer = Unmanaged.passUnretained(self).toOpaque()
+        CGDisplayRegisterReconfigurationCallback(callback, selfPointer)
+
+        NSLog("🖥️ DisplayManager: Registered for display changes")
     }
 
     func updateDisplayList() {

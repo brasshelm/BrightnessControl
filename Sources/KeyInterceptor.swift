@@ -3,9 +3,9 @@ import CoreGraphics
 import Foundation
 import AudioToolbox
 
-// F3/F4/F6 key codes (handle both Mac keyboard and USB keyboard variants)
-private let kVK_F3_codes: [Int64] = [99, 160]  // F3: Standard Mac (99) or USB keyboard (160)
-private let kVK_F4_codes: [Int64] = [118, 129] // F4: Standard Mac (118) or USB keyboard (129)
+// Keyboard shortcut key codes
+private let kVK_U: Int64 = 32  // U key for Cmd+U (brightness down)
+private let kVK_I: Int64 = 34  // I key for Cmd+I (brightness up)
 private let kVK_F6_codes: [Int64] = [97, 105]  // F6: Standard Mac (97) or USB keyboard (might vary)
 
 class KeyInterceptor {
@@ -86,8 +86,8 @@ class KeyInterceptor {
         // Enable tap
         CGEvent.tapEnable(tap: tap, enable: true)
 
-        NSLog("✅ KeyInterceptor: Initialized successfully - ready to capture F3/F4/F6")
-        print("Key interceptor initialized successfully")
+        NSLog("✅ KeyInterceptor: Initialized successfully - ready to capture Cmd+U/Cmd+I/F6")
+        print("Key interceptor initialized successfully - Cmd+U (down), Cmd+I (up), F6 (warm tint)")
     }
 
     private func handleEvent(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent> {
@@ -96,15 +96,21 @@ class KeyInterceptor {
             return Unmanaged.passUnretained(event)
         }
 
-        // Get the key code
+        // Get the key code and modifier flags
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-        NSLog("🔑 KEY EVENT: keyCode=\(keyCode)")
+        let flags = event.flags
+        NSLog("🔑 KEY EVENT: keyCode=\(keyCode), flags=\(flags.rawValue)")
 
-        // Check if it's F3, F4, or F6 (handle multiple possible keycodes)
-        if kVK_F3_codes.contains(keyCode) {
+        // Check for Command key modifier
+        let commandPressed = flags.contains(.maskCommand)
+
+        // Check for Cmd+U (brightness down) or Cmd+I (brightness up)
+        if commandPressed && keyCode == kVK_U {
+            NSLog("🔑 Detected: Cmd+U (Brightness Down)")
             handleBrightnessDown()
             return Unmanaged.passRetained(CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: false)!)
-        } else if kVK_F4_codes.contains(keyCode) {
+        } else if commandPressed && keyCode == kVK_I {
+            NSLog("🔑 Detected: Cmd+I (Brightness Up)")
             handleBrightnessUp()
             return Unmanaged.passRetained(CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: false)!)
         } else if kVK_F6_codes.contains(keyCode) {
