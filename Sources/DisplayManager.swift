@@ -20,6 +20,47 @@ class DisplayManager {
 
         // Register for display configuration changes
         setupDisplayReconfigurationCallback()
+
+        // Register for sleep/wake events to restore brightness
+        setupSleepWakeNotifications()
+    }
+
+    private func setupSleepWakeNotifications() {
+        let workspace = NSWorkspace.shared.notificationCenter
+
+        // When screens wake from sleep (including screen lock unlock)
+        workspace.addObserver(
+            forName: NSWorkspace.screensDidWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            NSLog("🖥️ Screens WOKE - restoring brightness settings")
+            // Small delay to ensure displays are fully initialized
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self?.restoreAllBrightness()
+            }
+        }
+
+        // Also handle system wake (belt and suspenders)
+        workspace.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            NSLog("🖥️ System WOKE - restoring brightness settings")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                self?.restoreAllBrightness()
+            }
+        }
+
+        NSLog("🖥️ DisplayManager: Registered for sleep/wake notifications")
+    }
+
+    private func restoreAllBrightness() {
+        for displayID in displays {
+            brightnessController?.restoreSavedBrightness(for: displayID)
+        }
+        NSLog("🖥️ Restored brightness for \(displays.count) display(s)")
     }
 
     private func setupDisplayReconfigurationCallback() {

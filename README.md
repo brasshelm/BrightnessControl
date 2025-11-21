@@ -34,10 +34,11 @@ This app controls brightness through **gamma table adjustments**—a software-ba
   - Cursor-based display targeting (adjusts the display your mouse is on)
   - Separate control strategies optimized for each display type
 
-- **Persistent Settings with Reconnection Memory**
+- **Persistent Settings with Sleep/Wake Memory**
   - Remembers brightness per display across app restarts
   - Automatically restores brightness when external display reconnects
-  - No jarring brightness resets when displays wake from sleep
+  - Restores brightness after screen lock/unlock and system sleep/wake
+  - No jarring brightness resets—settings persist through all display events
 
 - **Zero Dependencies** - Native Swift, no external frameworks required
 
@@ -108,15 +109,24 @@ The warm tint feature reduces blue light emission by adjusting the display's col
 
 This creates an orange/warm color temperature similar to f.lux or Night Shift, reducing eye strain during evening use.
 
-### Display Reconnection Intelligence
+### Display Persistence Intelligence
 
-When you disconnect and reconnect an external display, BrightnessControl:
+BrightnessControl automatically restores your brightness settings in multiple scenarios:
+
+**Display Reconnection**
+When you disconnect and reconnect an external display:
 1. Detects the display reconnection event via CoreGraphics callbacks
 2. Identifies the display by its unique ID
 3. Retrieves the saved brightness setting from local storage
 4. Automatically restores the previous brightness level
 
-No manual adjustment needed—your displays remember their settings.
+**Sleep/Wake & Screen Lock**
+When your Mac wakes from sleep or you unlock after screen lock:
+1. Listens for `screensDidWakeNotification` and `didWakeNotification` events
+2. Waits briefly for displays to fully initialize
+3. Restores saved brightness for all connected displays
+
+No manual adjustment needed—your displays remember their settings through all power events.
 
 ## Architecture
 
@@ -142,10 +152,11 @@ See `DEVELOPMENT.md` for detailed technical documentation.
 - Check that you've restarted the app after granting permissions
 - Verify the app is running (icon should appear in menu bar)
 
-### Brightness not persisting after display reconnect
-- Ensure you're using the latest version with display reconfiguration callbacks
-- Check logs at `/tmp/brightness.log` for display detection events
-- Try manually adjusting brightness once after reconnecting to re-save settings
+### Brightness not persisting after sleep/wake or reconnect
+- Ensure you're using the latest version with sleep/wake notifications
+- Check Console.app for "Screens WOKE" or "Display was ADDED" log messages
+- Try manually adjusting brightness once to re-save settings
+- If using older version, rebuild with `./install.sh` to get sleep/wake support
 
 ### Display appears washed out
 - This may indicate a gamma configuration issue
